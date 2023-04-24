@@ -1,80 +1,97 @@
 const Sequelize = require('sequelize');
-const { STRING, BOOLEAN, INTEGER } = Sequelize;
-const conn = new Sequelize(process.env.DATABASE_URL || 'postgres://localhost/acme_products_search_db');
+const { STRING, BOOLEAN, INTEGER, UUID, UUIDV4, TEXT } = Sequelize;
+const conn = new Sequelize(
+  process.env.DATABASE_URL || 'postgres://localhost/acme_products_search_db'
+);
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 
 const Product = conn.define('product', {
   name: {
-    type: STRING
+    type: STRING,
   },
   inStock: {
     type: BOOLEAN,
     allowNull: false,
-    defaultValue: true
-  }
+    defaultValue: true,
+  },
 });
 
 const User = conn.define('user', {
   username: {
     type: STRING,
-    unique: true
+    unique: true,
   },
   password: {
-    type: STRING
+    type: STRING,
   },
   luckyNumber: {
     type: INTEGER,
     allowNull: false,
-    defaultValue: 7
+    defaultValue: 7,
   },
 });
 
-User.addHook('beforeSave', async(user)=> {
-  if(user.changed('password')){
+const Note = conn.define('note', {
+  id: {
+    type: UUID,
+    primaryKey: true,
+    defaultValue: UUIDV4,
+  },
+  text: {
+    type: TEXT,
+    allowNull: false,
+  },
+});
+
+Note.belongsTo(User);
+
+User.addHook('beforeSave', async user => {
+  if (user.changed('password')) {
     user.password = await bcrypt.hash(user.password, 5);
   }
 });
 
-User.prototype.generateToken = function(){
+User.prototype.generateToken = function () {
   return {
-    token: jwt.sign({ id: this.id }, process.env.JWT) 
+    token: jwt.sign({ id: this.id }, process.env.JWT),
   };
-}
+};
 
-User.register = async function(credentials){
+User.register = async function (credentials) {
   const user = await this.create(credentials);
   return user.generateToken();
-}
+};
 
-User.findByToken = async function(token){
+User.findByToken = async function (token) {
   const { id } = jwt.verify(token, process.env.JWT);
   const user = await this.findByPk(id);
-  if(!user){
+  if (!user) {
     const error = Error('bad token!');
     error.status = 401;
     throw error;
   }
   return user;
-}
+};
 
-User.authenticate = async function(credentials){
+User.authenticate = async function (credentials) {
   const { username, password } = credentials;
   const user = await this.findOne({
     where: {
-      username
-    }
+      username,
+    },
   });
-  if(!user || !(await bcrypt.compare(password, user.password))){
+  if (!user || !(await bcrypt.compare(password, user.password))) {
     const error = Error('bad credentials');
     error.status = 401;
     throw error;
   }
   return user.generateToken();
-}
+};
 
 module.exports = {
   Product,
   User,
-  conn
+  Note,
+  conn,
 };

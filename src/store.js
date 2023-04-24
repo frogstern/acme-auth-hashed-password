@@ -1,47 +1,69 @@
 import { createStore, combineReducers, applyMiddleware } from 'redux';
 import logger from 'redux-logger';
-import thunk from 'redux-thunk'
+import thunk from 'redux-thunk';
 import axios from 'axios';
 
-const products = (state = [], action)=> {
-  if(action.type === 'SET_PRODUCTS'){
+const products = (state = [], action) => {
+  if (action.type === 'SET_PRODUCTS') {
     return action.products;
   }
   return state;
 };
 
-const auth = (state = {}, action)=> {
-  if(action.type === 'SET_AUTH'){
+const notes = (state = [], action) => {
+  if (action.type === 'SET_NOTES') {
+    return action.notes;
+  }
+  return state;
+};
+
+const auth = (state = {}, action) => {
+  if (action.type === 'SET_AUTH') {
     return action.auth;
   }
   return state;
 };
 
-export const fetchProducts = ()=> {
-  return async(dispatch)=> {
-    return dispatch({ type: 'SET_PRODUCTS', products: (await axios.get('/api/products')).data});
+export const fetchProducts = () => {
+  return async dispatch => {
+    return dispatch({
+      type: 'SET_PRODUCTS',
+      products: (await axios.get('/api/products')).data,
+    });
   };
 };
 
-export const loginWithToken = ()=> {
-  return async(dispatch)=> {
+export const fetchNotes = userId => {
+  return async dispatch => {
+    return dispatch({
+      type: 'SET_NOTES',
+      notes: (await axios.get(`/api/notes/${userId}`)).data,
+    });
+  };
+};
+
+export const loginWithToken = () => {
+  return async dispatch => {
     const token = window.localStorage.getItem('token');
-    if(token){
+    if (token) {
       const response = await axios.get(`/api/auth/${token}`);
       dispatch({ type: 'SET_AUTH', auth: response.data });
+      console.log(`${response.data.username} ${response.data.id}`);
+      dispatch(fetchNotes(response.data.id));
     }
   };
 };
 
-export const logout = ()=> {
-  return (dispatch)=> {
+export const logout = () => {
+  return dispatch => {
     window.localStorage.removeItem('token');
     dispatch({ type: 'SET_AUTH', auth: {} });
+    dispatch({ type: 'SET_NOTES', notes: [] });
   };
 };
 
-export const login = (credentials)=> {
-  return async(dispatch)=> {
+export const login = credentials => {
+  return async dispatch => {
     const response = await axios.post('/api/auth', credentials);
     const token = response.data.token;
     window.localStorage.setItem('token', token);
@@ -50,16 +72,16 @@ export const login = (credentials)=> {
   };
 };
 
-export const updateAuth = (auth)=> {
-  return async(dispatch)=> {
+export const updateAuth = auth => {
+  return async dispatch => {
     const token = window.localStorage.getItem('token');
-    const response = await axios.put(`/api/auth/${ token}`, auth);
+    const response = await axios.put(`/api/auth/${token}`, auth);
     dispatch({ type: 'SET_AUTH', auth: response.data });
   };
 };
 
-export const register = (credentials)=> {
-  return async(dispatch)=> {
+export const register = credentials => {
+  return async dispatch => {
     const response = await axios.post('/api/auth/register', credentials);
     const token = response.data.token;
     window.localStorage.setItem('token', token);
@@ -70,10 +92,10 @@ export const register = (credentials)=> {
 
 const reducer = combineReducers({
   products,
-  auth
+  notes,
+  auth,
 });
 
 const store = createStore(reducer, applyMiddleware(thunk, logger));
-
 
 export default store;
