@@ -14,6 +14,12 @@ const notes = (state = [], action) => {
   if (action.type === 'SET_NOTES') {
     return action.notes;
   }
+  if (action.type === 'REMOVE_NOTE') {
+    return state.filter(note => note.id !== action.noteId);
+  }
+  if (action.type === 'CREATE_NOTE') {
+    return [...state, action.note];
+  }
   return state;
 };
 
@@ -33,11 +39,27 @@ export const fetchProducts = () => {
   };
 };
 
-export const fetchNotes = userId => {
+const fetchNotes = userId => {
   return async dispatch => {
     return dispatch({
       type: 'SET_NOTES',
       notes: (await axios.get(`/api/notes/${userId}`)).data,
+    });
+  };
+};
+
+export const removeNote = _noteId => {
+  return async dispatch => {
+    await axios.delete(`/api/notes/${_noteId}`);
+    return dispatch({ type: 'REMOVE_NOTE', noteId: _noteId });
+  };
+};
+
+export const createNote = note => {
+  return async dispatch => {
+    return dispatch({
+      type: 'CREATE_NOTE',
+      note: (await axios.post(`/api/notes/`, note)).data,
     });
   };
 };
@@ -48,7 +70,6 @@ export const loginWithToken = () => {
     if (token) {
       const response = await axios.get(`/api/auth/${token}`);
       dispatch({ type: 'SET_AUTH', auth: response.data });
-      console.log(`${response.data.username} ${response.data.id}`);
       dispatch(fetchNotes(response.data.id));
     }
   };

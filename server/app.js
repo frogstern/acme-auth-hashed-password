@@ -36,6 +36,26 @@ app.get('/api/notes/:userId', async (req, res, next) => {
   }
 });
 
+app.delete('/api/notes/:id', async (req, res, next) => {
+  try {
+    const note = await Note.findByPk(req.params.id);
+    if (note) {
+      await note.destroy();
+      res.sendStatus(204);
+    }
+  } catch (ex) {
+    next(ex);
+  }
+});
+
+app.post('/api/notes', async (req, res, next) => {
+  try {
+    res.send(await Note.create(req.body));
+  } catch (ex) {
+    next(ex);
+  }
+});
+
 app.use('/api/auth', require('./routes/auth'));
 
 app.use((err, req, res, next) => {
